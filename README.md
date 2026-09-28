@@ -1,2 +1,30 @@
 # circularnodes
 
+正方形グリッドと、それに内接する正円で分割された領域を塗ることで作字を行うツール。
+
+仕様は [`docs/`](./docs) を参照。
+
+- [概要仕様書](./docs/overview.md)
+- [技術仕様書](./docs/technical-spec.md)
+- [機能仕様書](./docs/functional-spec.md)
+- [プロトタイプ設計書 p0.1](./docs/implement/prototype-01.md)
+
+## 開発
+
+```sh
+npm install
+npm run dev        # 開発サーバ
+npm run build      # 型チェック + ビルド
+npm run typecheck  # 型チェックのみ
+```
+
+## 操作（p0.1）
+
+| 操作 | 内容 |
+| --- | --- |
+| ドラッグ | 領域を塗る。塗り済みの領域から始めた場合はそのストロークは消去になる |
+| `G` | グリッド線・内接円の表示切替 |
+| `P` | PNG 書き出し（ガイド無し・背景透過） |
+| `S` | SVG 書き出し（ガイド無し・背景透過） |
+
+グリッドの行数・列数・セルの辺長・配色は `src/config.ts` の定数で変更する。
