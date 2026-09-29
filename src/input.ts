@@ -22,6 +22,65 @@ function applyStroke(regions: RegionId[]): boolean {
   return changed;
 }
 
+/** Space を押している間のパン（F-11）。待機と実行の状態を持つ */
+function attachPan(stage: HTMLElement): { setReady: (ready: boolean) => void } {
+  let ready = false;
+  let drag: { pointerId: number; x: number; y: number; left: number; top: number } | null = null;
+
+  const endDrag = (): void => {
+    if (!drag) return;
+    if (stage.hasPointerCapture(drag.pointerId)) stage.releasePointerCapture(drag.pointerId);
+    drag = null;
+    stage.classList.remove('is-panning');
+  };
+
+  // 描画ハンドラへ渡さないよう、キャプチャ段階で受けて伝播を止める
+  stage.addEventListener(
+    'pointerdown',
+    (event) => {
+      if (!ready) return;
+      event.preventDefault();
+      event.stopPropagation();
+      drag = {
+        pointerId: event.pointerId,
+        x: event.clientX,
+        y: event.clientY,
+        left: stage.scrollLeft,
+        top: stage.scrollTop,
+      };
+      stage.setPointerCapture(event.pointerId);
+      stage.classList.add('is-panning');
+    },
+    true,
+  );
+
+  stage.addEventListener(
+    'pointermove',
+    (event) => {
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      event.stopPropagation();
+      // スクロール範囲の外へは出ないので、端まで来たらそこで止まる
+      stage.scrollLeft = drag.left - (event.clientX - drag.x);
+      stage.scrollTop = drag.top - (event.clientY - drag.y);
+    },
+    true,
+  );
+
+  for (const type of ['pointerup', 'pointercancel'] as const) {
+    stage.addEventListener(type, endDrag, true);
+  }
+
+  return {
+    setReady(next) {
+      if (next === ready) return;
+      ready = next;
+      stage.classList.toggle('is-pan-ready', next);
+      // 押しながらのドラッグ中に離されたら、その時点で終える
+      if (!next) endDrag();
+    },
+  };
+}
+
 export type InputDeps = {
   /** 状態が変わったときだけ呼ばれる */
   onChange: () => void;
@@ -29,13 +88,16 @@ export type InputDeps = {
   actions: Actions;
   /** Esc が押されたとき */
   onEscape: () => void;
+  /** パンの対象となるスクロール領域 */
+  stage: HTMLElement;
   /** 指定した倍率へ、画面上の一点を動かさないように変更する */
   onZoomAt: (zoom: number, clientX: number, clientY: number) => void;
 };
 
 /** 入力を配線する */
 export function attachInput(canvas: HTMLCanvasElement, deps: InputDeps): void {
-  const { onChange, actions, onEscape, onZoomAt } = deps;
+  const { onChange, actions, onEscape, stage, onZoomAt } = deps;
+  const pan = attachPan(stage);
 
   canvas.addEventListener('pointerdown', (event) => {
     const point = pointerToGrid(canvas, event);
@@ -94,6 +156,13 @@ export function attachInput(canvas: HTMLCanvasElement, deps: InputDeps): void {
     // ダイアログの入力欄で打鍵している間はショートカットとして扱わない
     if (event.target instanceof HTMLElement && event.target.closest('input, dialog')) return;
 
+    if (event.key === ' ') {
+      // ブラウザ既定のスペースによるスクロールを抑える
+      event.preventDefault();
+      pan.setReady(true);
+      return;
+    }
+
     const shortcut: Record<string, () => void> = {
       n: actions.newDocument,
       g: actions.toggleGuide,
@@ -107,4 +176,11 @@ export function attachInput(canvas: HTMLCanvasElement, deps: InputDeps): void {
     event.preventDefault();
     run();
   });
+
+  window.addEventListener('keyup', (event) => {
+    if (event.key === ' ') pan.setReady(false);
+  });
+
+  // キー操作の取りこぼしで押しっぱなしになるのを防ぐ
+  window.addEventListener('blur', () => pan.setReady(false));
 }

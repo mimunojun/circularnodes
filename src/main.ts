@@ -87,6 +87,7 @@ attachInput(canvas, {
   onChange: requestRender,
   actions,
   onEscape: menuBar.closeMenus,
+  stage,
   onZoomAt: zoomAt,
 });
 

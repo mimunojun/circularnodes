@@ -40,6 +40,18 @@
         touch-action: none;
         cursor: crosshair;
       }
+      /* Space を押している間はパン（F-11） */
+      .stage.is-pan-ready,
+      .stage.is-pan-ready canvas {
+        cursor: grab;
+      }
+      .stage.is-panning,
+      .stage.is-panning canvas {
+        cursor: grabbing;
+      }
+      .stage.is-pan-ready {
+        user-select: none;
+      }
 
       /* --- ステータスバー (F-10) --- */
       .statusbar {
