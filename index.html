@@ -7,9 +7,18 @@
     <style>
       :root {
         color-scheme: light;
+        --menubar-height: 28px;
+        --menu-bg: #fdfdfd;
+        --menu-border: #d8d8d8;
+        --menu-text: #1c1c1c;
+        --menu-dim: #8a8a8a;
+        --menu-hover: #e8e8e8;
+        --menu-accent: #3478f6;
       }
       body {
         margin: 0;
+        box-sizing: border-box;
+        padding-top: var(--menubar-height);
         min-height: 100vh;
         display: flex;
         flex-direction: column;
@@ -27,34 +36,122 @@
         cursor: crosshair;
       }
       .help {
-        display: flex;
-        gap: 18px;
-        flex-wrap: wrap;
-        justify-content: center;
-        max-width: 90vw;
+        color: #777;
       }
-      .help kbd {
-        display: inline-block;
-        min-width: 1em;
-        padding: 1px 5px;
-        border: 1px solid #c4c4c4;
-        border-bottom-width: 2px;
-        border-radius: 4px;
-        background: #fff;
+
+      /* --- メニューバー (F-09) --- */
+      .menubar {
+        position: fixed;
+        inset: 0 0 auto 0;
+        z-index: 100;
+        display: flex;
+        align-items: stretch;
+        height: var(--menubar-height);
+        padding-left: 6px;
+        background: var(--menu-bg);
+        border-bottom: 1px solid var(--menu-border);
+        color: var(--menu-text);
+        user-select: none;
+      }
+      .menu {
+        position: relative;
+      }
+      .menu__title {
+        height: 100%;
+        padding: 0 11px;
+        border: 0;
+        border-radius: 5px;
+        background: transparent;
+        color: inherit;
         font: inherit;
-        font-size: 12px;
-        text-align: center;
+        cursor: default;
+      }
+      .menu__title:hover {
+        background: var(--menu-hover);
+      }
+      .menu.is-open > .menu__title {
+        background: var(--menu-accent);
+        color: #fff;
+      }
+
+      .menu__list {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        z-index: 1;
+        min-width: 210px;
+        margin: 0;
+        padding: 4px 0;
+        list-style: none;
+        background: var(--menu-bg);
+        border: 1px solid var(--menu-border);
+        border-radius: 6px;
+        box-shadow: 0 6px 20px rgb(0 0 0 / 0.16);
+      }
+      .menu.is-open > .menu__list {
+        display: block;
+      }
+
+      .item-row {
+        position: relative;
+      }
+      /* 下位メニューは親項目のホバーで開く */
+      .menu__list--sub {
+        top: -5px;
+        left: 100%;
+      }
+      .item-row--parent:hover > .menu__list--sub {
+        display: block;
+      }
+
+      .item {
+        display: grid;
+        grid-template-columns: 16px 1fr auto;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        padding: 4px 12px 4px 8px;
+        border: 0;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        text-align: left;
+        white-space: nowrap;
+        cursor: default;
+      }
+      .item:hover {
+        background: var(--menu-accent);
+        color: #fff;
+      }
+      .item__check::before {
+        content: "✓";
+        visibility: hidden;
+      }
+      .item.is-checked .item__check::before {
+        visibility: visible;
+      }
+      /* ショートカットは右詰め・薄く */
+      .item__shortcut {
+        justify-self: end;
+        color: var(--menu-dim);
+        font-variant-numeric: tabular-nums;
+      }
+      .item:hover .item__shortcut {
+        color: rgb(255 255 255 / 0.75);
+      }
+      .item__arrow {
+        justify-self: end;
+        color: var(--menu-dim);
+      }
+      .item:hover .item__arrow {
+        color: #fff;
       }
     </style>
   </head>
   <body>
     <canvas id="canvas"></canvas>
-    <div class="help">
-      <span>ドラッグ: 塗る / 塗り済みから開始で消す</span>
-      <span><kbd>G</kbd> ガイド表示</span>
-      <span><kbd>P</kbd> PNG 書き出し</span>
-      <span><kbd>S</kbd> SVG 書き出し</span>
-    </div>
+    <p class="help">ドラッグ: 領域を塗る / 塗り済みの領域から始めると消す</p>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

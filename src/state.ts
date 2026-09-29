@@ -38,6 +38,18 @@ export function* filledRegions(): Generator<RegionId> {
   }
 }
 
+/** 描画済みの領域が 1 つでもあるか */
+export function hasDrawing(): boolean {
+  return filled.some((value) => value === 1);
+}
+
+/** すべての領域を未描画に戻す。状態が変わったときだけ true を返す */
+export function clearAll(): boolean {
+  if (!hasDrawing()) return false;
+  filled.fill(0);
+  return true;
+}
+
 export type EditorState = {
   /** 現在のストロークのモード。null ならドラッグ中でない */
   strokeMode: StrokeMode | null;

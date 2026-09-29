@@ -1,5 +1,7 @@
 /** 初期化とイベント配線。 */
+import { createActions } from './actions';
 import { attachInput } from './input';
+import { attachMenuBar } from './menu';
 import { render, setupCanvas } from './render';
 
 const canvas = document.querySelector<HTMLCanvasElement>('#canvas');
@@ -18,5 +20,8 @@ function requestRender(): void {
   });
 }
 
-attachInput(canvas, requestRender);
+const actions = createActions(requestRender);
+const menuBar = attachMenuBar(document.body, actions);
+
+attachInput(canvas, { onChange: requestRender, actions, onEscape: menuBar.closeMenus });
 render(ctx);
