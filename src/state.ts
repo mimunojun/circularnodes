@@ -2,18 +2,32 @@
  * 描画状態とエディタ状態。設計書 docs/implement/prototype-01.md 7 章。
  * 状態は密配列で保持し、キャンバスサイズの変更時に作り直す。
  */
-import { DEFAULT_COLUMNS, DEFAULT_ROWS, DEFAULT_ZOOM, MAX_ZOOM, MIN_ZOOM } from './config';
+import {
+  DEFAULT_COLUMNS,
+  DEFAULT_ROWS,
+  DEFAULT_SHAPE,
+  DEFAULT_ZOOM,
+  MAX_SHAPE,
+  MAX_ZOOM,
+  MIN_SHAPE,
+  MIN_ZOOM,
+} from './config';
 import {
   KIND_INDEX,
   KIND_ORDER,
   REGIONS_PER_CELL,
+  type GridConfig,
   type GridSize,
   type RegionId,
   type StrokeMode,
 } from './types';
 
-/** 現在のグリッドの大きさ。F-04 で実行時に変わる */
-export const grid: GridSize = { columns: DEFAULT_COLUMNS, rows: DEFAULT_ROWS };
+/** 現在のグリッド設定。ドキュメントの属性であり、F-04 / F-13 で実行時に変わる */
+export const grid: GridConfig = {
+  columns: DEFAULT_COLUMNS,
+  rows: DEFAULT_ROWS,
+  shape: DEFAULT_SHAPE,
+};
 
 /** 描画状態。0 = 未描画, 1 = 描画済み */
 let filled = new Uint8Array(grid.columns * grid.rows * REGIONS_PER_CELL);
@@ -95,6 +109,17 @@ export function resetGrid(size: GridSize): void {
   grid.columns = size.columns;
   grid.rows = size.rows;
   filled = new Uint8Array(size.columns * size.rows * REGIONS_PER_CELL);
+}
+
+/**
+ * ノード形状を設定する。値が変わったときだけ true を返す。
+ * 形状は領域の形にのみ効くため、描画状態は作り直さない（機能仕様書 17.3）。
+ */
+export function setShape(shape: number): boolean {
+  const next = Math.min(MAX_SHAPE, Math.max(MIN_SHAPE, shape));
+  if (next === grid.shape) return false;
+  grid.shape = next;
+  return true;
 }
 
 export type EditorState = {

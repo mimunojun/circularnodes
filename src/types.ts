@@ -30,15 +30,34 @@ export type GridSize = {
   rows: number;
 };
 
+/**
+ * グリッドの設定。ノード形状（F-13）もドキュメントの属性としてここに持つ。
+ * shape は領域の形にのみ効き、分割数・識別子・隣接関係は変えない。
+ */
+export type GridConfig = GridSize & {
+  /** ノード形状 t。0.5 で正円（機能仕様書 17.2） */
+  shape: number;
+};
+
 /** グリッド座標上の点。単位はセル 1 個分 */
 export type GridPoint = { gx: number; gy: number };
 
 /** 1 ストロークの間だけ固定される描画モード */
 export type StrokeMode = 'fill' | 'erase';
 
+export type Point = { x: number; y: number };
+
+/** 汎用パスの構成要素。閉じる操作は描画側が行う */
+export type PathSegment =
+  | { type: 'line'; to: Point }
+  | { type: 'cubic'; c1: Point; c2: Point; to: Point };
+
 /**
  * 領域の形状。Canvas の描画命令と SVG のパス文字列の双方をここから生成する。
  * 座標はワールド座標（px）。
+ *
+ * 既定の正円では circle / corner（厳密な円・円弧）を返し、
+ * それ以外のノード形状では path（直線と 3 次ベジェ）を返す。
  */
 export type RegionShape =
   | { type: 'circle'; cx: number; cy: number; r: number }
@@ -48,10 +67,11 @@ export type RegionShape =
       cx: number;
       cy: number;
       /** セルの頂点 */
-      corner: { x: number; y: number };
+      corner: Point;
       /** 円弧の始点（辺の中点） */
-      arcStart: { x: number; y: number };
+      arcStart: Point;
       /** 円弧の終点（辺の中点） */
-      arcEnd: { x: number; y: number };
+      arcEnd: Point;
       r: number;
-    };
+    }
+  | { type: 'path'; start: Point; segments: PathSegment[] };

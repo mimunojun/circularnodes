@@ -39,6 +39,7 @@ function buildMenus(actions: Actions): Menu[] {
       label: '編集',
       items: [
         { type: 'command', label: 'キャンバスサイズを変更…', run: actions.changeCanvasSize },
+        { type: 'command', label: 'ノード形状を変更…', run: actions.changeShape },
       ],
     },
     {

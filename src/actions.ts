@@ -5,11 +5,21 @@
 import { DEFAULT_COLUMNS, DEFAULT_ROWS } from './config';
 import type { GridSizeDialog } from './dialog';
 import { exportPng, exportSvg } from './export';
-import { editor, grid, hasDrawing, hasDrawingOutside, resetGrid, resizeGrid } from './state';
+import type { ShapeDialog } from './shape-dialog';
+import {
+  editor,
+  grid,
+  hasDrawing,
+  hasDrawingOutside,
+  resetGrid,
+  resizeGrid,
+  setShape,
+} from './state';
 
 export type Actions = {
   newDocument: () => void;
   changeCanvasSize: () => void;
+  changeShape: () => void;
   exportPng: () => void;
   exportSvg: () => void;
   toggleGuide: () => void;
@@ -24,10 +34,11 @@ export type ActionDeps = {
   /** グリッドの大きさが変わったときに呼ぶ（キャンバスの寸法を合わせ直す） */
   onGridChange: () => void;
   dialog: GridSizeDialog;
+  shapeDialog: ShapeDialog;
 };
 
 export function createActions(deps: ActionDeps): Actions {
-  const { onChange, onGridChange, dialog } = deps;
+  const { onChange, onGridChange, dialog, shapeDialog } = deps;
 
   return {
     /** サイズを尋ねてから、その大きさの空のキャンバスにする */
@@ -54,6 +65,16 @@ export function createActions(deps: ActionDeps): Actions {
           hasDrawingOutside(size) ? '縮小により、範囲外になる描画は失われます' : null,
         onConfirm(size) {
           if (resizeGrid(size)) onGridChange();
+        },
+      });
+    },
+
+    /** ノード形状。操作中は即座に反映する（機能仕様書 17.5） */
+    changeShape() {
+      shapeDialog.open({
+        initial: grid.shape,
+        onChange(shape) {
+          if (setShape(shape)) onChange();
         },
       });
     },

@@ -18,6 +18,32 @@ export const MAX_GRID_SIZE = 32;
 /** 正方形セルの辺長（px）。キャンバスのピクセル寸法はこれと行数・列数から決まる */
 export const CELL_SIZE = 48;
 
+/** 正円になるノード形状（機能仕様書 17.2）。表示値の中央 0.5 に対応する */
+export const CIRCLE_SHAPE = 0.5;
+
+/** 既定のノード形状 */
+export const DEFAULT_SHAPE = CIRCLE_SHAPE;
+
+/** ノード形状の下限・上限（機能仕様書 17.6） */
+export const MIN_SHAPE = -0.5;
+export const MAX_SHAPE = 0.625;
+
+/** 表示値（0〜1 に正規化した値）の刻み */
+export const SHAPE_STEP = 0.001;
+
+/**
+ * スライダーが厳密に描ける値へ吸着する距離（スライダー上の px）。
+ * ドラッグ中のみ働き、数値入力には効かない（機能仕様書 17.5）。
+ * 値ではなく画面上の距離で決めるのは、操作感が幅に左右されないようにするため。
+ */
+export const SHAPE_SNAP_DISTANCE = 8;
+
+/** ダイアログ内プレビューの一辺（px） */
+export const SHAPE_PREVIEW_SIZE = 112;
+
+/** 四分曲線あたりの 3 次ベジェ分割数（機能仕様書 17.7） */
+export const SHAPE_CURVE_SEGMENTS = 4;
+
 /** 既定の表示倍率（機能仕様書 14.2） */
 export const DEFAULT_ZOOM = 1;
 

@@ -53,7 +53,7 @@ export function buildSvg(): string {
   const elements: string[] = [];
 
   for (const region of filledRegions()) {
-    const shape = regionShape(region);
+    const shape = regionShape(region, grid.shape);
 
     if (shape.type === 'circle') {
       elements.push(
@@ -62,14 +62,30 @@ export function buildSvg(): string {
       continue;
     }
 
-    const d = [
-      `M ${num(shape.corner.x)} ${num(shape.corner.y)}`,
-      `L ${num(shape.arcStart.x)} ${num(shape.arcStart.y)}`,
-      `A ${num(shape.r)} ${num(shape.r)} 0 ${ARC_LARGE_FLAG} ${ARC_SWEEP_FLAG}` +
-        ` ${num(shape.arcEnd.x)} ${num(shape.arcEnd.y)}`,
-      'Z',
-    ].join(' ');
-    elements.push(`    <path d="${d}"/>`);
+    if (shape.type === 'corner') {
+      const d = [
+        `M ${num(shape.corner.x)} ${num(shape.corner.y)}`,
+        `L ${num(shape.arcStart.x)} ${num(shape.arcStart.y)}`,
+        `A ${num(shape.r)} ${num(shape.r)} 0 ${ARC_LARGE_FLAG} ${ARC_SWEEP_FLAG}` +
+          ` ${num(shape.arcEnd.x)} ${num(shape.arcEnd.y)}`,
+        'Z',
+      ].join(' ');
+      elements.push(`    <path d="${d}"/>`);
+      continue;
+    }
+
+    const commands = [`M ${num(shape.start.x)} ${num(shape.start.y)}`];
+    for (const segment of shape.segments) {
+      commands.push(
+        segment.type === 'line'
+          ? `L ${num(segment.to.x)} ${num(segment.to.y)}`
+          : `C ${num(segment.c1.x)} ${num(segment.c1.y)}` +
+            ` ${num(segment.c2.x)} ${num(segment.c2.y)}` +
+            ` ${num(segment.to.x)} ${num(segment.to.y)}`,
+      );
+    }
+    commands.push('Z');
+    elements.push(`    <path d="${commands.join(' ')}"/>`);
   }
 
   return [

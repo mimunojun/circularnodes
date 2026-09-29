@@ -45,8 +45,12 @@ export function setupCanvas(canvas: HTMLCanvasElement): CanvasRenderingContext2D
 }
 
 /** 領域の輪郭を現在のパスに追加する */
-export function traceRegion(ctx: CanvasRenderingContext2D, region: RegionId): void {
-  const shape = regionShape(region);
+export function traceRegion(
+  ctx: CanvasRenderingContext2D,
+  region: RegionId,
+  shapeValue: number,
+): void {
+  const shape = regionShape(region, shapeValue);
 
   if (shape.type === 'circle') {
     ctx.moveTo(shape.cx + shape.r, shape.cy);
@@ -54,12 +58,22 @@ export function traceRegion(ctx: CanvasRenderingContext2D, region: RegionId): vo
     return;
   }
 
-  const startAngle = Math.atan2(shape.arcStart.y - shape.cy, shape.arcStart.x - shape.cx);
-  const endAngle = Math.atan2(shape.arcEnd.y - shape.cy, shape.arcEnd.x - shape.cx);
+  if (shape.type === 'corner') {
+    const startAngle = Math.atan2(shape.arcStart.y - shape.cy, shape.arcStart.x - shape.cx);
+    const endAngle = Math.atan2(shape.arcEnd.y - shape.cy, shape.arcEnd.x - shape.cx);
 
-  ctx.moveTo(shape.corner.x, shape.corner.y);
-  ctx.lineTo(shape.arcStart.x, shape.arcStart.y);
-  ctx.arc(shape.cx, shape.cy, shape.r, startAngle, endAngle, true);
+    ctx.moveTo(shape.corner.x, shape.corner.y);
+    ctx.lineTo(shape.arcStart.x, shape.arcStart.y);
+    ctx.arc(shape.cx, shape.cy, shape.r, startAngle, endAngle, true);
+    ctx.closePath();
+    return;
+  }
+
+  ctx.moveTo(shape.start.x, shape.start.y);
+  for (const segment of shape.segments) {
+    if (segment.type === 'line') ctx.lineTo(segment.to.x, segment.to.y);
+    else ctx.bezierCurveTo(segment.c1.x, segment.c1.y, segment.c2.x, segment.c2.y, segment.to.x, segment.to.y);
+  }
   ctx.closePath();
 }
 
@@ -68,7 +82,7 @@ export function paintGlyph(ctx: CanvasRenderingContext2D): void {
   ctx.fillStyle = COLOR_FILL;
   ctx.beginPath();
   for (const region of filledRegions()) {
-    traceRegion(ctx, region);
+    traceRegion(ctx, region, grid.shape);
   }
   ctx.fill();
 }
@@ -95,15 +109,11 @@ function drawGuides(ctx: CanvasRenderingContext2D): void {
   }
   ctx.stroke();
 
-  // 正円グリッド線
-  const r = CELL_SIZE / 2;
+  // ノードグリッド線。中心領域の輪郭そのものなので、ノード形状に追従する
   ctx.beginPath();
   for (let row = 0; row < grid.rows; row++) {
     for (let col = 0; col < grid.columns; col++) {
-      const cx = col * CELL_SIZE + r;
-      const cy = row * CELL_SIZE + r;
-      ctx.moveTo(cx + r, cy);
-      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      traceRegion(ctx, { col, row, kind: 'C' }, grid.shape);
     }
   }
   ctx.stroke();
@@ -116,7 +126,7 @@ function drawHighlight(ctx: CanvasRenderingContext2D, region: RegionId): void {
   ctx.lineWidth = HIGHLIGHT_WIDTH / editor.zoom;
   ctx.lineJoin = 'round';
   ctx.beginPath();
-  traceRegion(ctx, region);
+  traceRegion(ctx, region, grid.shape);
   ctx.stroke();
 }
 

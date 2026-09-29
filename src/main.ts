@@ -5,6 +5,7 @@ import { createGridSizeDialog } from './dialog';
 import { attachInput } from './input';
 import { attachMenuBar } from './menu';
 import { render, setupCanvas } from './render';
+import { createShapeDialog } from './shape-dialog';
 import { editor, setZoom } from './state';
 import { attachStatusBar } from './statusbar';
 
@@ -80,7 +81,13 @@ const statusBar = attachStatusBar(document.body, {
 });
 
 const dialog = createGridSizeDialog(document.body);
-const actions = createActions({ onChange: requestRender, onGridChange: applyViewChange, dialog });
+const shapeDialog = createShapeDialog(document.body);
+const actions = createActions({
+  onChange: requestRender,
+  onGridChange: applyViewChange,
+  dialog,
+  shapeDialog,
+});
 const menuBar = attachMenuBar(document.body, actions);
 
 attachInput(canvas, {

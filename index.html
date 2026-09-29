@@ -220,7 +220,7 @@
 
       /* --- ダイアログ (F-04) --- */
       .dialog {
-        min-width: 300px;
+        min-width: 360px;
         padding: 0;
         border: 0;
         border-radius: 10px;
@@ -265,9 +265,75 @@
         outline: 2px solid var(--menu-accent);
         outline-offset: -1px;
       }
+      .dialog__preview {
+        align-self: center;
+        border-radius: 4px;
+        box-shadow: 0 0 0 1px var(--menu-border);
+      }
+      .dialog__row--shape {
+        align-items: center;
+        gap: 14px;
+      }
+      /* --- スライダー --- */
+      .slider {
+        position: relative;
+        flex: 1;
+        min-width: 220px;
+        height: 20px;
+        cursor: pointer;
+        touch-action: none;
+      }
+      .slider__track {
+        position: absolute;
+        top: 50%;
+        right: 0;
+        left: 0;
+        height: 4px;
+        border-radius: 2px;
+        background: #dcdcdc;
+        transform: translateY(-50%);
+      }
+      .slider__fill {
+        height: 100%;
+        border-radius: 2px;
+        background: var(--menu-accent);
+      }
+      /* 吸着位置の目印 */
+      .slider__mark {
+        position: absolute;
+        top: 50%;
+        width: 2px;
+        height: 10px;
+        border-radius: 1px;
+        background: #b4b4b4;
+        transform: translate(-50%, -50%);
+      }
+      .slider__thumb {
+        position: absolute;
+        top: 50%;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: var(--menu-accent);
+        box-shadow: 0 1px 3px rgb(0 0 0 / 0.25);
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+      }
+      .slider:focus-visible {
+        outline: none;
+      }
+      .slider:focus-visible .slider__thumb {
+        box-shadow: 0 0 0 3px rgb(52 120 246 / 0.35);
+      }
+      .slider.is-dragging .slider__thumb {
+        transform: translate(-50%, -50%) scale(1.15);
+      }
       .dialog__times {
         padding-bottom: 5px;
         color: #8a8a8a;
+      }
+      .dialog__field input[type="number"] {
+        width: 72px;
       }
       .dialog__hint {
         margin: 0;
