@@ -2,10 +2,10 @@
  * PNG / SVG 書き出し。設計書 docs/implement/prototype-01.md 11 章。
  * ガイドは含めず、描画済み領域のみを背景透過で出力する。
  */
-import { CANVAS_HEIGHT, CANVAS_WIDTH, COLOR_FILL } from './config';
-import { ARC_LARGE_FLAG, ARC_SWEEP_FLAG, regionShape } from './geometry';
+import { COLOR_FILL } from './config';
+import { ARC_LARGE_FLAG, ARC_SWEEP_FLAG, gridPixelSize, regionShape } from './geometry';
 import { paintGlyph } from './render';
-import { filledRegions } from './state';
+import { filledRegions, grid } from './state';
 
 function timestamp(): string {
   const now = new Date();
@@ -32,9 +32,10 @@ function num(value: number): string {
 
 /** ガイド無し・背景透過で PNG を書き出す */
 export function exportPng(): void {
+  const { width, height } = gridPixelSize(grid);
   const canvas = document.createElement('canvas');
-  canvas.width = CANVAS_WIDTH;
-  canvas.height = CANVAS_HEIGHT;
+  canvas.width = width;
+  canvas.height = height;
 
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('書き出し用の Canvas 2D context を取得できませんでした');
@@ -48,6 +49,7 @@ export function exportPng(): void {
 
 /** 描画済み領域を 1 つずつ要素として直列化する。パスの結合は行わない */
 export function buildSvg(): string {
+  const { width, height } = gridPixelSize(grid);
   const elements: string[] = [];
 
   for (const region of filledRegions()) {
@@ -71,8 +73,8 @@ export function buildSvg(): string {
   }
 
   return [
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${CANVAS_WIDTH}" height="${CANVAS_HEIGHT}"` +
-      ` viewBox="0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}">`,
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"` +
+      ` viewBox="0 0 ${width} ${height}">`,
     `  <g fill="${COLOR_FILL}">`,
     ...elements,
     '  </g>',

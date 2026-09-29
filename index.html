@@ -147,6 +147,107 @@
       .item:hover .item__arrow {
         color: #fff;
       }
+      .item__shortcut:empty {
+        min-width: 0;
+      }
+
+      /* --- ダイアログ (F-04) --- */
+      .dialog {
+        min-width: 300px;
+        padding: 0;
+        border: 0;
+        border-radius: 10px;
+        background: #fdfdfd;
+        color: #1c1c1c;
+        box-shadow: 0 12px 40px rgb(0 0 0 / 0.24);
+      }
+      .dialog::backdrop {
+        background: rgb(0 0 0 / 0.25);
+      }
+      .dialog__form {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding: 20px;
+      }
+      .dialog__title {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 600;
+      }
+      .dialog__row {
+        display: flex;
+        align-items: flex-end;
+        gap: 10px;
+      }
+      .dialog__field {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .dialog__field input {
+        width: 72px;
+        padding: 5px 8px;
+        border: 1px solid #c4c4c4;
+        border-radius: 5px;
+        background: #fff;
+        color: inherit;
+        font: inherit;
+      }
+      .dialog__field input:focus-visible {
+        outline: 2px solid var(--menu-accent);
+        outline-offset: -1px;
+      }
+      .dialog__times {
+        padding-bottom: 5px;
+        color: #8a8a8a;
+      }
+      .dialog__hint {
+        margin: 0;
+        color: #8a8a8a;
+        font-size: 12px;
+      }
+      .dialog__hint.is-invalid {
+        color: #c0392b;
+      }
+      .dialog__warning {
+        margin: 0;
+        padding: 6px 9px;
+        border-radius: 5px;
+        background: #fdf3e2;
+        color: #8a5a10;
+        font-size: 12px;
+      }
+      .dialog__buttons {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 4px;
+      }
+      .dialog__buttons button {
+        padding: 6px 14px;
+        border: 1px solid #c4c4c4;
+        border-radius: 6px;
+        background: #fff;
+        color: inherit;
+        font: inherit;
+        cursor: default;
+      }
+      .dialog__buttons button:hover {
+        background: #f0f0f0;
+      }
+      .dialog__buttons .is-primary {
+        border-color: transparent;
+        background: var(--menu-accent);
+        color: #fff;
+      }
+      .dialog__buttons .is-primary:hover {
+        background: #2a68dd;
+      }
+      .dialog__buttons .is-primary:disabled {
+        background: #b9cdf5;
+        cursor: not-allowed;
+      }
     </style>
   </head>
   <body>

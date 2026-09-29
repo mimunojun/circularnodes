@@ -2,8 +2,8 @@
  * グリッドの幾何計算。UI・描画方式に依存しない純粋関数のみを置く。
  * 設計書 docs/implement/prototype-01.md 8 章、技術仕様書 6.2 / 7.2。
  */
-import { CELL_SIZE, COLUMNS, ROWS, SAMPLE_STEP } from './config';
-import type { GridPoint, RegionId, RegionKind, RegionShape } from './types';
+import { CELL_SIZE, SAMPLE_STEP } from './config';
+import type { GridPoint, GridSize, RegionId, RegionKind, RegionShape } from './types';
 
 /** セル中心から見た内接円の半径（グリッド座標） */
 const UNIT_RADIUS = 0.5;
@@ -20,6 +20,11 @@ const CORNER_TURNS: Record<Exclude<RegionKind, 'C'>, number> = {
 export const ARC_LARGE_FLAG = 0;
 export const ARC_SWEEP_FLAG = 0;
 
+/** グリッドのピクセル寸法。キャンバスの大きさもこれに一致する */
+export function gridPixelSize(grid: GridSize): { width: number; height: number } {
+  return { width: grid.columns * CELL_SIZE, height: grid.rows * CELL_SIZE };
+}
+
 /** キャンバス上の CSS ピクセル座標をグリッド座標に変換する */
 export function screenToGrid(px: number, py: number): GridPoint {
   return { gx: px / CELL_SIZE, gy: py / CELL_SIZE };
@@ -28,11 +33,12 @@ export function screenToGrid(px: number, py: number): GridPoint {
 /**
  * グリッド座標の点が属する領域を返す。グリッド外なら null。
  * 円周上（中心からの距離がちょうど半径）は円領域に含める。
+ * グリッドの大きさは実行時に変わるため、範囲判定に使う値は引数で受け取る。
  */
-export function hitTest(gx: number, gy: number): RegionId | null {
+export function hitTest(gx: number, gy: number, grid: GridSize): RegionId | null {
   const col = Math.floor(gx);
   const row = Math.floor(gy);
-  if (col < 0 || col >= COLUMNS || row < 0 || row >= ROWS) return null;
+  if (col < 0 || col >= grid.columns || row < 0 || row >= grid.rows) return null;
 
   const lx = gx - col;
   const ly = gy - row;
@@ -49,7 +55,7 @@ export function hitTest(gx: number, gy: number): RegionId | null {
  * 2 点間を等間隔にサンプリングし、通過した領域を重複なく返す。
  * 始点は含まない（直前の pointermove で処理済みのため）。
  */
-export function regionsOnSegment(from: GridPoint, to: GridPoint): RegionId[] {
+export function regionsOnSegment(from: GridPoint, to: GridPoint, grid: GridSize): RegionId[] {
   const dist = Math.hypot(to.gx - from.gx, to.gy - from.gy);
   const steps = Math.max(1, Math.ceil(dist / SAMPLE_STEP));
 
@@ -58,7 +64,11 @@ export function regionsOnSegment(from: GridPoint, to: GridPoint): RegionId[] {
 
   for (let i = 1; i <= steps; i++) {
     const t = i / steps;
-    const region = hitTest(from.gx + (to.gx - from.gx) * t, from.gy + (to.gy - from.gy) * t);
+    const region = hitTest(
+      from.gx + (to.gx - from.gx) * t,
+      from.gy + (to.gy - from.gy) * t,
+      grid,
+    );
     if (!region) continue;
 
     const key = `${region.col},${region.row},${region.kind}`;

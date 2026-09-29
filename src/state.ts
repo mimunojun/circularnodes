@@ -1,15 +1,29 @@
 /**
  * 描画状態とエディタ状態。設計書 docs/implement/prototype-01.md 7 章。
- * p0.1 はグリッドが固定のため、状態は密配列で保持する。
+ * 状態は密配列で保持し、キャンバスサイズの変更時に作り直す。
  */
-import { COLUMNS, ROWS } from './config';
-import { KIND_INDEX, KIND_ORDER, REGIONS_PER_CELL, type RegionId, type StrokeMode } from './types';
+import { DEFAULT_COLUMNS, DEFAULT_ROWS } from './config';
+import {
+  KIND_INDEX,
+  KIND_ORDER,
+  REGIONS_PER_CELL,
+  type GridSize,
+  type RegionId,
+  type StrokeMode,
+} from './types';
+
+/** 現在のグリッドの大きさ。F-04 で実行時に変わる */
+export const grid: GridSize = { columns: DEFAULT_COLUMNS, rows: DEFAULT_ROWS };
 
 /** 描画状態。0 = 未描画, 1 = 描画済み */
-export const filled = new Uint8Array(COLUMNS * ROWS * REGIONS_PER_CELL);
+let filled = new Uint8Array(grid.columns * grid.rows * REGIONS_PER_CELL);
+
+function indexIn(size: GridSize, col: number, row: number, kindIndex: number): number {
+  return (row * size.columns + col) * REGIONS_PER_CELL + kindIndex;
+}
 
 export function regionIndex(region: RegionId): number {
-  return (region.row * COLUMNS + region.col) * REGIONS_PER_CELL + KIND_INDEX[region.kind];
+  return indexIn(grid, region.col, region.row, KIND_INDEX[region.kind]);
 }
 
 export function isFilled(region: RegionId): boolean {
@@ -27,10 +41,10 @@ export function setFilled(region: RegionId, value: boolean): boolean {
 
 /** 描画済みの領域を走査順（row → col → kind）に列挙する */
 export function* filledRegions(): Generator<RegionId> {
-  for (let row = 0; row < ROWS; row++) {
-    for (let col = 0; col < COLUMNS; col++) {
+  for (let row = 0; row < grid.rows; row++) {
+    for (let col = 0; col < grid.columns; col++) {
       for (const kind of KIND_ORDER) {
-        if (filled[(row * COLUMNS + col) * REGIONS_PER_CELL + KIND_INDEX[kind]] === 1) {
+        if (filled[indexIn(grid, col, row, KIND_INDEX[kind])] === 1) {
           yield { col, row, kind };
         }
       }
@@ -43,11 +57,44 @@ export function hasDrawing(): boolean {
   return filled.some((value) => value === 1);
 }
 
-/** すべての領域を未描画に戻す。状態が変わったときだけ true を返す */
-export function clearAll(): boolean {
-  if (!hasDrawing()) return false;
-  filled.fill(0);
+/** 指定サイズに縮めたとき、範囲外に出て失われる描画があるか */
+export function hasDrawingOutside(size: GridSize): boolean {
+  for (const region of filledRegions()) {
+    if (region.col >= size.columns || region.row >= size.rows) return true;
+  }
+  return false;
+}
+
+/**
+ * グリッドの大きさを変える。新旧のセル範囲が重なる部分の描画だけを引き継ぎ、
+ * 範囲外になった領域の描画は失われる（機能仕様書 8.3）。
+ */
+export function resizeGrid(size: GridSize): boolean {
+  if (size.columns === grid.columns && size.rows === grid.rows) return false;
+
+  const next = new Uint8Array(size.columns * size.rows * REGIONS_PER_CELL);
+  const columns = Math.min(grid.columns, size.columns);
+  const rows = Math.min(grid.rows, size.rows);
+
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < columns; col++) {
+      for (let kind = 0; kind < REGIONS_PER_CELL; kind++) {
+        next[indexIn(size, col, row, kind)] = filled[indexIn(grid, col, row, kind)] as number;
+      }
+    }
+  }
+
+  grid.columns = size.columns;
+  grid.rows = size.rows;
+  filled = next;
   return true;
+}
+
+/** 指定サイズの空のキャンバスにする */
+export function resetGrid(size: GridSize): void {
+  grid.columns = size.columns;
+  grid.rows = size.rows;
+  filled = new Uint8Array(size.columns * size.rows * REGIONS_PER_CELL);
 }
 
 export type EditorState = {

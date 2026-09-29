@@ -1,19 +1,22 @@
 /** p0.1 の定数。設計書 docs/implement/prototype-01.md 6 章。 */
 
-/** 横方向のセル数 */
-export const COLUMNS = 8;
+/** 横方向のセル数の既定値。実際の値は実行時に変更できる（F-04） */
+export const DEFAULT_COLUMNS = 8;
 
-/** 縦方向のセル数 */
-export const ROWS = 8;
+/** 縦方向のセル数の既定値 */
+export const DEFAULT_ROWS = 8;
 
-/** 正方形セルの辺長（px）。キャンバスの寸法もここから決まる */
+/** 行数・列数の下限 */
+export const MIN_GRID_SIZE = 1;
+
+/**
+ * 行数・列数の上限。
+ * ズーム・パンを持たない現状では、これを超えるとキャンバスが画面に収まらない。
+ */
+export const MAX_GRID_SIZE = 32;
+
+/** 正方形セルの辺長（px）。キャンバスのピクセル寸法はこれと行数・列数から決まる */
 export const CELL_SIZE = 48;
-
-/** キャンバスの幅（px） */
-export const CANVAS_WIDTH = COLUMNS * CELL_SIZE;
-
-/** キャンバスの高さ（px） */
-export const CANVAS_HEIGHT = ROWS * CELL_SIZE;
 
 /** 背景色。書き出しには使わない（書き出しの背景は透過） */
 export const COLOR_BG = '#ffffff';

@@ -32,13 +32,13 @@ p0.1 で確かめたいことは次の 3 点である。
 | F-03 | 領域の消去 | ストローク開始位置の状態で塗り／消しを決める方式（3.3 参照） |
 | F-07 | 書き出し | PNG と SVG を 1 ファイルずつ出力。オプションは持たない（11 章） |
 | F-08 | グリッド線の表示切替 | キー 1 つでガイドの表示／非表示を切り替える |
-| F-09 | メニューバー | 画面上部に固定。ファイル / 表示の 2 メニュー（機能仕様書 13 章） |
+| F-04 | グリッド設定 | キャンバスサイズ（m × n）の変更のみ。`cellSize` と配色は定数のまま |
+| F-09 | メニューバー | 画面上部に固定。ファイル / 編集 / 表示の 3 メニュー（機能仕様書 13 章） |
 
 ### 3.2 実装しない機能
 
 | ID | 機能 | 見送る理由 |
 | --- | --- | --- |
-| F-04 | グリッド設定 UI | 定数の書き換えで足りる。UI は検証対象ではない |
 | F-05 | Undo / Redo | 3.3 の操作方式なら塗り直しで回復できる |
 | F-06 | 保存・読み込み | 永続化は p0.1 の検証項目に含まない。作業状態はリロードで失われる |
 | — | ズーム・パン | 固定サイズのキャンバスに収める |
@@ -99,9 +99,11 @@ p0.1 で確かめたいことは次の 3 点である。
 
 | 定数 | 値 | 説明 |
 | --- | --- | --- |
-| `COLUMNS` | 8 | 横方向のセル数。TODO: 参考字形に合わせて調整 |
-| `ROWS` | 8 | 縦方向のセル数。TODO: 同上 |
-| `CELL_SIZE` | 48 | セルの辺長（px）。キャンバスサイズもこれから決まる |
+| `DEFAULT_COLUMNS` | 8 | 横方向のセル数の既定値。実際の値は実行時に変更できる |
+| `DEFAULT_ROWS` | 8 | 縦方向のセル数の既定値 |
+| `MIN_GRID_SIZE` | 1 | 行数・列数の下限 |
+| `MAX_GRID_SIZE` | 32 | 行数・列数の上限（機能仕様書 8.1） |
+| `CELL_SIZE` | 48 | セルの辺長（px）。キャンバスのピクセル寸法はこれと行数・列数から導出する |
 | `COLOR_BG` | TODO | 背景色 |
 | `COLOR_FILL` | TODO | 描画済み領域の色 |
 | `COLOR_GUIDE` | TODO | グリッド線・内接円の色 |
@@ -111,7 +113,7 @@ p0.1 で確かめたいことは次の 3 点である。
 
 ## 7. データモデル
 
-[技術仕様書](../technical-spec.md) 4.2 の `RegionId` を用いる。p0.1 では状態保持を**密配列**とする（グリッドが固定で、リサイズを考えなくてよいため）。
+[技術仕様書](../technical-spec.md) 4.2 の `RegionId` を用いる。状態保持は**密配列**とし、キャンバスサイズの変更時に配列を作り直して既存の描画を移し替える。
 
 ```ts
 type RegionKind = 'C' | 'NW' | 'NE' | 'SW' | 'SE';
@@ -120,12 +122,19 @@ const KIND_ORDER: RegionKind[] = ['C', 'NW', 'NE', 'SW', 'SE'];
 
 type RegionId = { col: number; row: number; kind: RegionKind };
 
-/** 描画状態。0 = 未描画, 1 = 描画済み */
-const filled = new Uint8Array(COLUMNS * ROWS * KIND_ORDER.length);
+/** 実行時に変わるグリッドの大きさ */
+const grid = { columns: DEFAULT_COLUMNS, rows: DEFAULT_ROWS };
+
+/** 描画状態。0 = 未描画, 1 = 描画済み。サイズ変更時に作り直す */
+let filled = new Uint8Array(grid.columns * grid.rows * KIND_ORDER.length);
 
 const indexOf = (r: RegionId): number =>
-  (r.row * COLUMNS + r.col) * 5 + KIND_ORDER.indexOf(r.kind);
+  (r.row * grid.columns + r.col) * 5 + KIND_ORDER.indexOf(r.kind);
 ```
+
+グリッドの大きさが実行時に変わるため、`geometry` の範囲判定はグリッドを引数で受け取る（`hitTest(gx, gy, grid)`）。`geometry` を状態から独立させたまま保つための措置である。
+
+サイズ変更時は新しい配列を確保し、新旧のセル範囲が重なる部分だけを移し替える。縮小で範囲外になる領域の描画は失われる（機能仕様書 8.3）。
 
 エディタ状態は次のみ。
 
@@ -199,8 +208,8 @@ DDA による厳密な走査は p0.1 では行わない。取りこぼしが実�
 | `keydown` (`g`) | `showGuide` を反転 |
 | `keydown` (`p`) | PNG を書き出す（11 章） |
 | `keydown` (`s`) | SVG を書き出す（11 章） |
-| `keydown` (`n`) | 全領域を未描画に戻す。描画済みの領域があるときは `confirm` で確認する |
-| `keydown` (`Escape`) | 開いているメニューを閉じる |
+| `keydown` (`n`) | キャンバスサイズ変更ダイアログを既定サイズで開く。決定でその大きさの空のキャンバスにする |
+| `keydown` (`Escape`) | 開いているメニューを閉じる。ダイアログが開いているときは `<dialog>` 側が閉じる |
 
 キャンバス外でポインタを離した場合に備え、`setPointerCapture` を使う。
 
@@ -265,6 +274,7 @@ circularnodes/
     ├── render.ts      # Canvas への描画
     ├── actions.ts     # メニューとショートカットが共有するコマンド
     ├── menu.ts        # メニューバーの生成と開閉
+    ├── dialog.ts      # キャンバスサイズ変更ダイアログ
     ├── export.ts      # PNG / SVG 書き出し
     └── input.ts       # Pointer / Key ハンドラ
 ```
@@ -287,6 +297,7 @@ circularnodes/
 | 8 | PNG 書き出し | `P` でガイド無しの PNG が落ちてくる |
 | 9 | SVG 書き出し | `S` で落ちた SVG を Illustrator で開ける |
 | 10 | メニューバー | メニューから全機能を実行でき、ショートカットが右詰めで表示される |
+| 11 | キャンバスサイズ変更 | ダイアログで m × n を決定すると即座に反映され、重なる範囲の描画が残る |
 
 ## 14. 完了条件
 

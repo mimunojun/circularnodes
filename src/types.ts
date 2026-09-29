@@ -24,6 +24,12 @@ export type RegionId = {
   kind: RegionKind;
 };
 
+/** グリッドの大きさ（セル数） */
+export type GridSize = {
+  columns: number;
+  rows: number;
+};
+
 /** グリッド座標上の点。単位はセル 1 個分 */
 export type GridPoint = { gx: number; gy: number };
 

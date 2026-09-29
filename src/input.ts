@@ -4,7 +4,7 @@
  */
 import type { Actions } from './actions';
 import { hitTest, regionsOnSegment, screenToGrid } from './geometry';
-import { editor, isFilled, setFilled } from './state';
+import { editor, grid, isFilled, setFilled } from './state';
 import type { GridPoint, RegionId } from './types';
 
 function pointerToGrid(canvas: HTMLCanvasElement, event: PointerEvent): GridPoint {
@@ -36,7 +36,7 @@ export function attachInput(canvas: HTMLCanvasElement, deps: InputDeps): void {
 
   canvas.addEventListener('pointerdown', (event) => {
     const point = pointerToGrid(canvas, event);
-    const region = hitTest(point.gx, point.gy);
+    const region = hitTest(point.gx, point.gy, grid);
     if (!region) return;
 
     // ストローク全体のモードを開始位置の状態で決める
@@ -51,7 +51,7 @@ export function attachInput(canvas: HTMLCanvasElement, deps: InputDeps): void {
     if (editor.strokeMode === null || editor.lastPoint === null) return;
 
     const point = pointerToGrid(canvas, event);
-    const regions = regionsOnSegment(editor.lastPoint, point);
+    const regions = regionsOnSegment(editor.lastPoint, point, grid);
     editor.lastPoint = point;
 
     if (applyStroke(regions)) onChange();
@@ -74,22 +74,20 @@ export function attachInput(canvas: HTMLCanvasElement, deps: InputDeps): void {
       return;
     }
     if (event.metaKey || event.ctrlKey || event.altKey) return;
+    // ダイアログの入力欄で打鍵している間はショートカットとして扱わない
+    if (event.target instanceof HTMLElement && event.target.closest('input, dialog')) return;
 
-    switch (event.key.toLowerCase()) {
-      case 'n':
-        actions.newDocument();
-        break;
-      case 'g':
-        actions.toggleGuide();
-        break;
-      case 'p':
-        actions.exportPng();
-        break;
-      case 's':
-        actions.exportSvg();
-        break;
-      default:
-        break;
-    }
+    const shortcut: Record<string, () => void> = {
+      n: actions.newDocument,
+      g: actions.toggleGuide,
+      p: actions.exportPng,
+      s: actions.exportSvg,
+    };
+    const run = shortcut[event.key.toLowerCase()];
+    if (!run) return;
+
+    // ダイアログを開くショートカットでは、この打鍵がそのまま入力欄へ入らないようにする
+    event.preventDefault();
+    run();
   });
 }

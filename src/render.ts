@@ -2,28 +2,22 @@
  * Canvas 2D への描画。設計書 docs/implement/prototype-01.md 9 章。
  * 差分描画は行わず、状態が変わるたびに全面を描き直す。
  */
-import {
-  CANVAS_HEIGHT,
-  CANVAS_WIDTH,
-  CELL_SIZE,
-  COLOR_BG,
-  COLOR_FILL,
-  COLOR_GUIDE,
-  COLUMNS,
-  GUIDE_WIDTH,
-  ROWS,
-} from './config';
-import { regionShape } from './geometry';
-import { editor, filledRegions } from './state';
+import { CELL_SIZE, COLOR_BG, COLOR_FILL, COLOR_GUIDE, GUIDE_WIDTH } from './config';
+import { gridPixelSize, regionShape } from './geometry';
+import { editor, filledRegions, grid } from './state';
 import type { RegionId } from './types';
 
-/** キャンバスを実寸に合わせ、devicePixelRatio を考慮した context を返す */
+/**
+ * キャンバスを現在のグリッドの実寸に合わせ、devicePixelRatio を考慮した context を返す。
+ * グリッドの大きさが変わったあとに呼び直してよい（寸法の代入で context の状態は初期化される）。
+ */
 export function setupCanvas(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
+  const { width, height } = gridPixelSize(grid);
   const dpr = window.devicePixelRatio || 1;
-  canvas.width = CANVAS_WIDTH * dpr;
-  canvas.height = CANVAS_HEIGHT * dpr;
-  canvas.style.width = `${CANVAS_WIDTH}px`;
-  canvas.style.height = `${CANVAS_HEIGHT}px`;
+  canvas.width = width * dpr;
+  canvas.height = height * dpr;
+  canvas.style.width = `${width}px`;
+  canvas.style.height = `${height}px`;
 
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Canvas 2D context を取得できませんでした');
@@ -61,29 +55,30 @@ export function paintGlyph(ctx: CanvasRenderingContext2D): void {
 }
 
 function drawGuides(ctx: CanvasRenderingContext2D): void {
+  const { width, height } = gridPixelSize(grid);
   ctx.strokeStyle = COLOR_GUIDE;
   ctx.lineWidth = GUIDE_WIDTH;
 
   // 正方形グリッド線。線幅 1px を境界にぴったり乗せるため半ピクセルずらす
   const offset = GUIDE_WIDTH / 2;
   ctx.beginPath();
-  for (let col = 0; col <= COLUMNS; col++) {
-    const x = Math.min(col * CELL_SIZE + offset, CANVAS_WIDTH - offset);
+  for (let col = 0; col <= grid.columns; col++) {
+    const x = Math.min(col * CELL_SIZE + offset, width - offset);
     ctx.moveTo(x, 0);
-    ctx.lineTo(x, CANVAS_HEIGHT);
+    ctx.lineTo(x, height);
   }
-  for (let row = 0; row <= ROWS; row++) {
-    const y = Math.min(row * CELL_SIZE + offset, CANVAS_HEIGHT - offset);
+  for (let row = 0; row <= grid.rows; row++) {
+    const y = Math.min(row * CELL_SIZE + offset, height - offset);
     ctx.moveTo(0, y);
-    ctx.lineTo(CANVAS_WIDTH, y);
+    ctx.lineTo(width, y);
   }
   ctx.stroke();
 
   // 正円グリッド線
   const r = CELL_SIZE / 2;
   ctx.beginPath();
-  for (let row = 0; row < ROWS; row++) {
-    for (let col = 0; col < COLUMNS; col++) {
+  for (let row = 0; row < grid.rows; row++) {
+    for (let col = 0; col < grid.columns; col++) {
       const cx = col * CELL_SIZE + r;
       const cy = row * CELL_SIZE + r;
       ctx.moveTo(cx + r, cy);
@@ -94,8 +89,9 @@ function drawGuides(ctx: CanvasRenderingContext2D): void {
 }
 
 export function render(ctx: CanvasRenderingContext2D): void {
+  const { width, height } = gridPixelSize(grid);
   ctx.fillStyle = COLOR_BG;
-  ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+  ctx.fillRect(0, 0, width, height);
 
   paintGlyph(ctx);
 
