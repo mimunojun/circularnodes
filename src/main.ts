@@ -18,14 +18,34 @@ function mustFind<T extends Element>(selector: string): T {
 
 const canvas = mustFind<HTMLCanvasElement>('#canvas');
 const stage = mustFind<HTMLElement>('#stage');
-/** グリッドと同じ大きさを占める要素。地色とスクロール範囲を受け持つ */
+/** グリッドと同じ大きさを占める要素。地色とポインタ操作を受け持つ */
 const paper = mustFind<HTMLElement>('#paper');
+/** スクロール範囲を決める箱 */
+const inner = mustFind<HTMLElement>('#stage-inner');
 
-/** 用紙の寸法をグリッドと倍率に合わせる */
+/**
+ * 用紙の寸法をグリッドと倍率に合わせ、その外側に表示領域の半分ずつ余白を取る。
+ * 用紙のどの点もステージの中央まで持ってこられるようにするため（機能仕様書 15.4）。
+ */
 function syncPaper(): void {
   const { width, height } = gridPixelSize(grid);
-  paper.style.width = `${width * editor.zoom}px`;
-  paper.style.height = `${height * editor.zoom}px`;
+  const paperWidth = width * editor.zoom;
+  const paperHeight = height * editor.zoom;
+  const marginX = stage.clientWidth / 2;
+  const marginY = stage.clientHeight / 2;
+
+  paper.style.width = `${paperWidth}px`;
+  paper.style.height = `${paperHeight}px`;
+  paper.style.left = `${marginX}px`;
+  paper.style.top = `${marginY}px`;
+  inner.style.width = `${paperWidth + marginX * 2}px`;
+  inner.style.height = `${paperHeight + marginY * 2}px`;
+}
+
+/** 用紙がステージの中央に来るようスクロール位置を合わせる */
+function centerPaper(): void {
+  stage.scrollLeft = (inner.offsetWidth - stage.clientWidth) / 2;
+  stage.scrollTop = (inner.offsetHeight - stage.clientHeight) / 2;
 }
 
 /** キャンバスから見た用紙の位置と、表示領域の大きさ */
@@ -51,11 +71,17 @@ function requestRender(): void {
   });
 }
 
-/** グリッドの大きさや倍率が変わったら、用紙の寸法を合わせ直してから描き直す */
+/** 倍率が変わったら、用紙の寸法を合わせ直してから描き直す */
 function applyViewChange(): void {
   syncPaper();
   statusBar.update();
   requestRender();
+}
+
+/** グリッドの大きさが変わったときは、あわせて表示位置を中央へ戻す */
+function applyGridChange(): void {
+  applyViewChange();
+  centerPaper();
 }
 
 /**
@@ -104,7 +130,7 @@ const dialog = createGridSizeDialog(document.body);
 const shapeDialog = createShapeDialog(document.body);
 const actions = createActions({
   onChange: requestRender,
-  onGridChange: applyViewChange,
+  onGridChange: applyGridChange,
   dialog,
   shapeDialog,
 });
@@ -120,7 +146,12 @@ attachInput(paper, {
 
 // 表示範囲だけを描くため、スクロールとステージの伸縮でも描き直す
 stage.addEventListener('scroll', requestRender, { passive: true });
-new ResizeObserver(() => requestRender()).observe(stage);
+// 余白は表示領域の大きさから決まるので、伸縮したら取り直す
+new ResizeObserver(() => {
+  syncPaper();
+  requestRender();
+}).observe(stage);
 
 syncPaper();
+centerPaper();
 requestRender();

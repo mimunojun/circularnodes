@@ -24,20 +24,22 @@
         color: #444;
         font: 13px/1.6 system-ui, -apple-system, "Hiragino Sans", sans-serif;
       }
-      /* メニューバーとステータスバーの間。収まらないときはここがスクロールする */
+      /* メニューバーとステータスバーの間。ここがスクロールする */
       .stage {
         position: fixed;
         inset: var(--menubar-height) 0 var(--statusbar-height) 0;
-        display: flex;
         overflow: auto;
+      }
+      /* スクロール範囲を決める箱。用紙の外側に表示領域の半分ずつ余白を持つ（F-11） */
+      .stage__inner {
+        position: relative;
       }
       /* グリッドと同じ大きさを占める用紙。地色・スクロール範囲・
          ポインタ操作を受け持つ。
          justify-content ではなく margin で中央に置くのは、
          内容がステージより大きいときに端が切れないようにするため */
       .paper {
-        margin: auto;
-        flex: none;
+        position: absolute;
         background: #fff;
         box-shadow: 0 1px 4px rgb(0 0 0 / 0.15);
         touch-action: none;
@@ -395,7 +397,9 @@
   </head>
   <body>
     <div class="stage" id="stage">
-      <div class="paper" id="paper"></div>
+      <div class="stage__inner" id="stage-inner">
+        <div class="paper" id="paper"></div>
+      </div>
     </div>
     <canvas class="stage__canvas" id="canvas"></canvas>
     <script type="module" src="/src/main.ts"></script>
