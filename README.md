@@ -2,6 +2,10 @@
 
 正方形グリッドと、それに内接する正円で分割された領域を塗ることで作字を行うツール。
 
+**<https://mimunojun.github.io/circularnodes/>** で使えます。
+
+> このリポジトリはコントリビュートを受け付けていません（[CONTRIBUTING.md](./CONTRIBUTING.md)）。
+
 仕様は [`docs/`](./docs) を参照。
 
 - [概要仕様書](./docs/overview.md)
