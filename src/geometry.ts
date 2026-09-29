@@ -25,9 +25,12 @@ export function gridPixelSize(grid: GridSize): { width: number; height: number }
   return { width: grid.columns * CELL_SIZE, height: grid.rows * CELL_SIZE };
 }
 
-/** キャンバス上の CSS ピクセル座標をグリッド座標に変換する */
-export function screenToGrid(px: number, py: number): GridPoint {
-  return { gx: px / CELL_SIZE, gy: py / CELL_SIZE };
+/**
+ * キャンバス上の CSS ピクセル座標をグリッド座標に変換する。
+ * スクリーン座標 → （倍率で割る）→ ワールド座標 → （辺長で割る）→ グリッド座標。
+ */
+export function screenToGrid(px: number, py: number, zoom: number): GridPoint {
+  return { gx: px / (CELL_SIZE * zoom), gy: py / (CELL_SIZE * zoom) };
 }
 
 /**

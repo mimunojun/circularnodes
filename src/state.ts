@@ -2,7 +2,7 @@
  * 描画状態とエディタ状態。設計書 docs/implement/prototype-01.md 7 章。
  * 状態は密配列で保持し、キャンバスサイズの変更時に作り直す。
  */
-import { DEFAULT_COLUMNS, DEFAULT_ROWS } from './config';
+import { DEFAULT_COLUMNS, DEFAULT_ROWS, DEFAULT_ZOOM, MAX_ZOOM, MIN_ZOOM } from './config';
 import {
   KIND_INDEX,
   KIND_ORDER,
@@ -103,10 +103,21 @@ export type EditorState = {
   /** 直前のポインタ位置（補間に使う）。グリッド座標 */
   lastPoint: { gx: number; gy: number } | null;
   showGuide: boolean;
+  /** 表示倍率。描画内容・書き出し結果には影響しない（F-10） */
+  zoom: number;
 };
 
 export const editor: EditorState = {
   strokeMode: null,
   lastPoint: null,
   showGuide: true,
+  zoom: DEFAULT_ZOOM,
 };
+
+/** 倍率を範囲内に収めて設定する。値が変わったときだけ true を返す */
+export function setZoom(zoom: number): boolean {
+  const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom));
+  if (next === editor.zoom) return false;
+  editor.zoom = next;
+  return true;
+}

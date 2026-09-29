@@ -2,26 +2,43 @@
  * Canvas 2D への描画。設計書 docs/implement/prototype-01.md 9 章。
  * 差分描画は行わず、状態が変わるたびに全面を描き直す。
  */
-import { CELL_SIZE, COLOR_BG, COLOR_FILL, COLOR_GUIDE, GUIDE_WIDTH } from './config';
+import {
+  CELL_SIZE,
+  COLOR_BG,
+  COLOR_FILL,
+  COLOR_GUIDE,
+  GUIDE_WIDTH,
+  MAX_BACKING_SIZE,
+} from './config';
 import { gridPixelSize, regionShape } from './geometry';
 import { editor, filledRegions, grid } from './state';
 import type { RegionId } from './types';
 
 /**
- * キャンバスを現在のグリッドの実寸に合わせ、devicePixelRatio を考慮した context を返す。
- * グリッドの大きさが変わったあとに呼び直してよい（寸法の代入で context の状態は初期化される）。
+ * キャンバスを現在のグリッドと倍率に合わせ、描画用の context を返す。
+ * グリッドの大きさや倍率が変わったあとに呼び直してよい
+ * （寸法の代入で context の状態は初期化される）。
+ *
+ * 表示寸法は倍率どおりにし、描画先は倍率と devicePixelRatio の分だけ
+ * 細かく取る。拡大しても輪郭が滑らかに保たれる（機能仕様書 14.6）。
  */
 export function setupCanvas(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
   const { width, height } = gridPixelSize(grid);
   const dpr = window.devicePixelRatio || 1;
-  canvas.width = width * dpr;
-  canvas.height = height * dpr;
-  canvas.style.width = `${width}px`;
-  canvas.style.height = `${height}px`;
+
+  // 描画先が過大にならないよう、一辺の上限で頭打ちにする
+  const maxScale = MAX_BACKING_SIZE / Math.max(width, height);
+  const scale = Math.min(editor.zoom * dpr, maxScale);
+
+  canvas.width = Math.max(1, Math.round(width * scale));
+  canvas.height = Math.max(1, Math.round(height * scale));
+  canvas.style.width = `${width * editor.zoom}px`;
+  canvas.style.height = `${height * editor.zoom}px`;
 
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Canvas 2D context を取得できませんでした');
-  ctx.scale(dpr, dpr);
+  // 丸めた実寸から倍率を求め直し、端が欠けないようにする
+  ctx.scale(canvas.width / width, canvas.height / height);
   return ctx;
 }
 
@@ -56,11 +73,13 @@ export function paintGlyph(ctx: CanvasRenderingContext2D): void {
 
 function drawGuides(ctx: CanvasRenderingContext2D): void {
   const { width, height } = gridPixelSize(grid);
+  // ガイド線の太さは倍率によらず一定に保つ（機能仕様書 14.6）
+  const lineWidth = GUIDE_WIDTH / editor.zoom;
   ctx.strokeStyle = COLOR_GUIDE;
-  ctx.lineWidth = GUIDE_WIDTH;
+  ctx.lineWidth = lineWidth;
 
-  // 正方形グリッド線。線幅 1px を境界にぴったり乗せるため半ピクセルずらす
-  const offset = GUIDE_WIDTH / 2;
+  // 正方形グリッド線。線を境界にぴったり乗せるため半線幅ずらす
+  const offset = lineWidth / 2;
   ctx.beginPath();
   for (let col = 0; col <= grid.columns; col++) {
     const x = Math.min(col * CELL_SIZE + offset, width - offset);

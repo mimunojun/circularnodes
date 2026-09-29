@@ -3,13 +3,14 @@
  * ツール切替は持たず、ストローク開始位置の状態で塗り／消しを決める。
  */
 import type { Actions } from './actions';
+import { ZOOM_WHEEL_SENSITIVITY } from './config';
 import { hitTest, regionsOnSegment, screenToGrid } from './geometry';
 import { editor, grid, isFilled, setFilled } from './state';
 import type { GridPoint, RegionId } from './types';
 
 function pointerToGrid(canvas: HTMLCanvasElement, event: PointerEvent): GridPoint {
   const rect = canvas.getBoundingClientRect();
-  return screenToGrid(event.clientX - rect.left, event.clientY - rect.top);
+  return screenToGrid(event.clientX - rect.left, event.clientY - rect.top, editor.zoom);
 }
 
 function applyStroke(regions: RegionId[]): boolean {
@@ -28,11 +29,13 @@ export type InputDeps = {
   actions: Actions;
   /** Esc が押されたとき */
   onEscape: () => void;
+  /** 指定した倍率へ、画面上の一点を動かさないように変更する */
+  onZoomAt: (zoom: number, clientX: number, clientY: number) => void;
 };
 
 /** 入力を配線する */
 export function attachInput(canvas: HTMLCanvasElement, deps: InputDeps): void {
-  const { onChange, actions, onEscape } = deps;
+  const { onChange, actions, onEscape, onZoomAt } = deps;
 
   canvas.addEventListener('pointerdown', (event) => {
     const point = pointerToGrid(canvas, event);
@@ -68,6 +71,20 @@ export function attachInput(canvas: HTMLCanvasElement, deps: InputDeps): void {
   canvas.addEventListener('pointercancel', endStroke);
 
   // ショートカットは修飾キーを伴わない単独キー（機能仕様書 13.7）
+  // ⌘ / Ctrl + ホイールでズーム（機能仕様書 14.3）。
+  // ポインタがバーの上にあってもブラウザのページズームに渡らないよう window で受け、
+  // preventDefault するため passive: false で登録する
+  window.addEventListener(
+    'wheel',
+    (event) => {
+      if (!event.metaKey && !event.ctrlKey) return;
+      event.preventDefault();
+      const factor = Math.exp(-event.deltaY * ZOOM_WHEEL_SENSITIVITY);
+      onZoomAt(editor.zoom * factor, event.clientX, event.clientY);
+    },
+    { passive: false },
+  );
+
   window.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') {
       onEscape();

@@ -18,6 +18,26 @@ export const MAX_GRID_SIZE = 32;
 /** 正方形セルの辺長（px）。キャンバスのピクセル寸法はこれと行数・列数から決まる */
 export const CELL_SIZE = 48;
 
+/** 既定の表示倍率（機能仕様書 14.2） */
+export const DEFAULT_ZOOM = 1;
+
+/** 表示倍率の下限・上限 */
+export const MIN_ZOOM = 0.25;
+export const MAX_ZOOM = 4;
+
+/** ステータスバーの「+」「-」ボタンが移動する倍率の段階 */
+export const ZOOM_STOPS = [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4];
+
+/** ホイールの移動量（px）から倍率への変換係数。大きいほど敏感になる */
+export const ZOOM_WHEEL_SENSITIVITY = 0.0025;
+
+/**
+ * 描画先（キャンバスのバッキングストア）の一辺の上限（px）。
+ * 大きなグリッドを高倍率で表示したときに、確保するピクセル数が
+ * 現実的でなくなるのを防ぐ。超えた分は引き伸ばしで補う。
+ */
+export const MAX_BACKING_SIZE = 4096;
+
 /** 背景色。書き出しには使わない（書き出しの背景は透過） */
 export const COLOR_BG = '#ffffff';
 
