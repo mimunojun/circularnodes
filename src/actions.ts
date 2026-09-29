@@ -14,6 +14,8 @@ export type Actions = {
   exportSvg: () => void;
   toggleGuide: () => void;
   isGuideVisible: () => boolean;
+  toggleHighlight: () => void;
+  isHighlightVisible: () => boolean;
 };
 
 export type ActionDeps = {
@@ -65,5 +67,12 @@ export function createActions(deps: ActionDeps): Actions {
     },
 
     isGuideVisible: () => editor.showGuide,
+
+    toggleHighlight() {
+      editor.showHighlight = !editor.showHighlight;
+      onChange();
+    },
+
+    isHighlightVisible: () => editor.showHighlight,
   };
 }

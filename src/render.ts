@@ -7,7 +7,9 @@ import {
   COLOR_BG,
   COLOR_FILL,
   COLOR_GUIDE,
+  COLOR_HIGHLIGHT,
   GUIDE_WIDTH,
+  HIGHLIGHT_WIDTH,
   MAX_BACKING_SIZE,
 } from './config';
 import { gridPixelSize, regionShape } from './geometry';
@@ -107,6 +109,17 @@ function drawGuides(ctx: CanvasRenderingContext2D): void {
   ctx.stroke();
 }
 
+/** ポインタが乗っている領域の輪郭を強調する（F-12）。書き出しには含めない */
+function drawHighlight(ctx: CanvasRenderingContext2D, region: RegionId): void {
+  ctx.strokeStyle = COLOR_HIGHLIGHT;
+  // 線幅は倍率によらず一定に保つ
+  ctx.lineWidth = HIGHLIGHT_WIDTH / editor.zoom;
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  traceRegion(ctx, region);
+  ctx.stroke();
+}
+
 export function render(ctx: CanvasRenderingContext2D): void {
   const { width, height } = gridPixelSize(grid);
   ctx.fillStyle = COLOR_BG;
@@ -115,4 +128,7 @@ export function render(ctx: CanvasRenderingContext2D): void {
   paintGlyph(ctx);
 
   if (editor.showGuide) drawGuides(ctx);
+
+  // 他のすべてより前面に描く
+  if (editor.showHighlight && editor.hoverRegion) drawHighlight(ctx, editor.hoverRegion);
 }

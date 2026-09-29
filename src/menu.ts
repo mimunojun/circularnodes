@@ -51,6 +51,12 @@ function buildMenus(actions: Actions): Menu[] {
           run: actions.toggleGuide,
           checked: actions.isGuideVisible,
         },
+        {
+          type: 'command',
+          label: 'ハイライト表示',
+          run: actions.toggleHighlight,
+          checked: actions.isHighlightVisible,
+        },
       ],
     },
   ];

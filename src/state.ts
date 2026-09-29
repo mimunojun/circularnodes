@@ -103,6 +103,9 @@ export type EditorState = {
   /** 直前のポインタ位置（補間に使う）。グリッド座標 */
   lastPoint: { gx: number; gy: number } | null;
   showGuide: boolean;
+  showHighlight: boolean;
+  /** ポインタが乗っている領域。キャンバスの外なら null（F-12） */
+  hoverRegion: RegionId | null;
   /** 表示倍率。描画内容・書き出し結果には影響しない（F-10） */
   zoom: number;
 };
@@ -111,8 +114,27 @@ export const editor: EditorState = {
   strokeMode: null,
   lastPoint: null,
   showGuide: true,
+  showHighlight: true,
+  hoverRegion: null,
   zoom: DEFAULT_ZOOM,
 };
+
+/** ハイライト対象の領域を設定する。対象が変わったときだけ true を返す */
+export function setHoverRegion(region: RegionId | null): boolean {
+  const current = editor.hoverRegion;
+  if (current === region) return false;
+  if (
+    current &&
+    region &&
+    current.col === region.col &&
+    current.row === region.row &&
+    current.kind === region.kind
+  ) {
+    return false;
+  }
+  editor.hoverRegion = region;
+  return true;
+}
 
 /** 倍率を範囲内に収めて設定する。値が変わったときだけ true を返す */
 export function setZoom(zoom: number): boolean {

@@ -5,7 +5,7 @@
 import type { Actions } from './actions';
 import { ZOOM_WHEEL_SENSITIVITY } from './config';
 import { hitTest, regionsOnSegment, screenToGrid } from './geometry';
-import { editor, grid, isFilled, setFilled } from './state';
+import { editor, grid, isFilled, setFilled, setHoverRegion } from './state';
 import type { GridPoint, RegionId } from './types';
 
 function pointerToGrid(canvas: HTMLCanvasElement, event: PointerEvent): GridPoint {
@@ -23,7 +23,7 @@ function applyStroke(regions: RegionId[]): boolean {
 }
 
 /** Space を押している間のパン（F-11）。待機と実行の状態を持つ */
-function attachPan(stage: HTMLElement): { setReady: (ready: boolean) => void } {
+function attachPan(stage: HTMLElement): { isReady: () => boolean; setReady: (ready: boolean) => void } {
   let ready = false;
   let drag: { pointerId: number; x: number; y: number; left: number; top: number } | null = null;
 
@@ -71,6 +71,7 @@ function attachPan(stage: HTMLElement): { setReady: (ready: boolean) => void } {
   }
 
   return {
+    isReady: () => ready,
     setReady(next) {
       if (next === ready) return;
       ready = next;
@@ -109,17 +110,29 @@ export function attachInput(canvas: HTMLCanvasElement, deps: InputDeps): void {
     editor.lastPoint = point;
     canvas.setPointerCapture(event.pointerId);
 
-    if (applyStroke([region])) onChange();
+    setHoverRegion(region);
+    applyStroke([region]);
+    onChange();
   });
 
   canvas.addEventListener('pointermove', (event) => {
-    if (editor.strokeMode === null || editor.lastPoint === null) return;
-
     const point = pointerToGrid(canvas, event);
-    const regions = regionsOnSegment(editor.lastPoint, point, grid);
-    editor.lastPoint = point;
 
-    if (applyStroke(regions)) onChange();
+    // パン中は描画の対象を示す必要がないため強調しない（機能仕様書 16.3）
+    const hover = pan.isReady() ? null : hitTest(point.gx, point.gy, grid);
+    let changed = setHoverRegion(hover);
+
+    if (editor.strokeMode !== null && editor.lastPoint !== null) {
+      const regions = regionsOnSegment(editor.lastPoint, point, grid);
+      editor.lastPoint = point;
+      if (applyStroke(regions)) changed = true;
+    }
+
+    if (changed) onChange();
+  });
+
+  canvas.addEventListener('pointerleave', () => {
+    if (setHoverRegion(null)) onChange();
   });
 
   const endStroke = (event: PointerEvent) => {
@@ -160,6 +173,7 @@ export function attachInput(canvas: HTMLCanvasElement, deps: InputDeps): void {
       // ブラウザ既定のスペースによるスクロールを抑える
       event.preventDefault();
       pan.setReady(true);
+      if (setHoverRegion(null)) onChange();
       return;
     }
 

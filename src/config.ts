@@ -50,6 +50,12 @@ export const COLOR_GUIDE = '#d4d4d4';
 /** ガイド線の太さ（px） */
 export const GUIDE_WIDTH = 1;
 
+/** ハイライトの色（機能仕様書 16.2）。グリッド線・字形のいずれとも紛れない赤 */
+export const COLOR_HIGHLIGHT = '#e5484d';
+
+/** ハイライトの線幅（px）。グリッド線より少しだけ太くする */
+export const HIGHLIGHT_WIDTH = 2;
+
 /**
  * ドラッグ補間のサンプリング間隔（グリッド座標）。
  * 隅領域は円との接点付近で細くなるため、0.25 では横方向のドラッグで
