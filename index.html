@@ -31,22 +31,32 @@
         display: flex;
         overflow: auto;
       }
-      /* justify-content ではなく margin で中央に置く。
+      /* グリッドと同じ大きさを占める用紙。地色・スクロール範囲・
+         ポインタ操作を受け持つ。
+         justify-content ではなく margin で中央に置くのは、
          内容がステージより大きいときに端が切れないようにするため */
-      .stage canvas {
+      .paper {
         margin: auto;
+        flex: none;
         background: #fff;
         box-shadow: 0 1px 4px rgb(0 0 0 / 0.15);
         touch-action: none;
         cursor: crosshair;
       }
+      /* 描画面。表示領域と同じ大きさで用紙に重ねる。見えている範囲だけを描く */
+      .stage__canvas {
+        position: fixed;
+        top: var(--menubar-height);
+        left: 0;
+        pointer-events: none;
+      }
       /* Space を押している間はパン（F-11） */
       .stage.is-pan-ready,
-      .stage.is-pan-ready canvas {
+      .stage.is-pan-ready .paper {
         cursor: grab;
       }
       .stage.is-panning,
-      .stage.is-panning canvas {
+      .stage.is-panning .paper {
         cursor: grabbing;
       }
       .stage.is-pan-ready {
@@ -385,8 +395,9 @@
   </head>
   <body>
     <div class="stage" id="stage">
-      <canvas id="canvas"></canvas>
+      <div class="paper" id="paper"></div>
     </div>
+    <canvas class="stage__canvas" id="canvas"></canvas>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

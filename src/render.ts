@@ -1,48 +1,24 @@
 /**
  * Canvas 2D への描画。設計書 docs/implement/prototype-01.md 9 章。
- * 差分描画は行わず、状態が変わるたびに全面を描き直す。
+ *
+ * キャンバスは表示領域（ステージ）と同じ大きさだけを持ち、見えている範囲の
+ * セルだけを描く。グリッド全体を毎フレーム描くと、大きなグリッドでは
+ * 1 フレームに秒単位を要してしまうためである。
  */
-import {
-  CELL_SIZE,
-  COLOR_BG,
-  COLOR_FILL,
-  COLOR_GUIDE,
-  COLOR_HIGHLIGHT,
-  GUIDE_WIDTH,
-  HIGHLIGHT_WIDTH,
-  MAX_BACKING_SIZE,
-} from './config';
+import { CELL_SIZE, COLOR_FILL, COLOR_GUIDE, COLOR_HIGHLIGHT, GUIDE_WIDTH, HIGHLIGHT_WIDTH } from './config';
 import { gridPixelSize, regionShape } from './geometry';
-import { editor, filledRegions, grid } from './state';
+import { editor, filledRegions, grid, type CellBounds } from './state';
 import type { RegionId } from './types';
 
-/**
- * キャンバスを現在のグリッドと倍率に合わせ、描画用の context を返す。
- * グリッドの大きさや倍率が変わったあとに呼び直してよい
- * （寸法の代入で context の状態は初期化される）。
- *
- * 表示寸法は倍率どおりにし、描画先は倍率と devicePixelRatio の分だけ
- * 細かく取る。拡大しても輪郭が滑らかに保たれる（機能仕様書 14.6）。
- */
-export function setupCanvas(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
-  const { width, height } = gridPixelSize(grid);
-  const dpr = window.devicePixelRatio || 1;
-
-  // 描画先が過大にならないよう、一辺の上限で頭打ちにする
-  const maxScale = MAX_BACKING_SIZE / Math.max(width, height);
-  const scale = Math.min(editor.zoom * dpr, maxScale);
-
-  canvas.width = Math.max(1, Math.round(width * scale));
-  canvas.height = Math.max(1, Math.round(height * scale));
-  canvas.style.width = `${width * editor.zoom}px`;
-  canvas.style.height = `${height * editor.zoom}px`;
-
-  const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('Canvas 2D context を取得できませんでした');
-  // 丸めた実寸から倍率を求め直し、端が欠けないようにする
-  ctx.scale(canvas.width / width, canvas.height / height);
-  return ctx;
-}
+/** 表示領域。キャンバスの左上を原点とした CSS ピクセルで表す */
+export type Viewport = {
+  /** グリッドの原点（左上）の位置 */
+  offsetX: number;
+  offsetY: number;
+  /** 表示領域の大きさ */
+  width: number;
+  height: number;
+};
 
 /** 領域の輪郭を現在のパスに追加する */
 export function traceRegion(
@@ -72,22 +48,30 @@ export function traceRegion(
   ctx.moveTo(shape.start.x, shape.start.y);
   for (const segment of shape.segments) {
     if (segment.type === 'line') ctx.lineTo(segment.to.x, segment.to.y);
-    else ctx.bezierCurveTo(segment.c1.x, segment.c1.y, segment.c2.x, segment.c2.y, segment.to.x, segment.to.y);
+    else
+      ctx.bezierCurveTo(
+        segment.c1.x,
+        segment.c1.y,
+        segment.c2.x,
+        segment.c2.y,
+        segment.to.x,
+        segment.to.y,
+      );
   }
   ctx.closePath();
 }
 
-/** 描画済み領域のみを塗る。書き出し側からも使う */
-export function paintGlyph(ctx: CanvasRenderingContext2D): void {
+/** 描画済み領域のみを塗る。書き出し側からも使う（範囲を絞らなければグリッド全体） */
+export function paintGlyph(ctx: CanvasRenderingContext2D, bounds?: CellBounds): void {
   ctx.fillStyle = COLOR_FILL;
   ctx.beginPath();
-  for (const region of filledRegions()) {
+  for (const region of filledRegions(bounds)) {
     traceRegion(ctx, region, grid.shape);
   }
   ctx.fill();
 }
 
-function drawGuides(ctx: CanvasRenderingContext2D): void {
+function drawGuides(ctx: CanvasRenderingContext2D, bounds: CellBounds): void {
   const { width, height } = gridPixelSize(grid);
   // ガイド線の太さは倍率によらず一定に保つ（機能仕様書 14.6）
   const lineWidth = GUIDE_WIDTH / editor.zoom;
@@ -97,22 +81,22 @@ function drawGuides(ctx: CanvasRenderingContext2D): void {
   // 正方形グリッド線。線を境界にぴったり乗せるため半線幅ずらす
   const offset = lineWidth / 2;
   ctx.beginPath();
-  for (let col = 0; col <= grid.columns; col++) {
+  for (let col = bounds.colStart; col <= bounds.colEnd + 1; col++) {
     const x = Math.min(col * CELL_SIZE + offset, width - offset);
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, height);
+    ctx.moveTo(x, bounds.rowStart * CELL_SIZE);
+    ctx.lineTo(x, Math.min((bounds.rowEnd + 1) * CELL_SIZE, height));
   }
-  for (let row = 0; row <= grid.rows; row++) {
+  for (let row = bounds.rowStart; row <= bounds.rowEnd + 1; row++) {
     const y = Math.min(row * CELL_SIZE + offset, height - offset);
-    ctx.moveTo(0, y);
-    ctx.lineTo(width, y);
+    ctx.moveTo(bounds.colStart * CELL_SIZE, y);
+    ctx.lineTo(Math.min((bounds.colEnd + 1) * CELL_SIZE, width), y);
   }
   ctx.stroke();
 
   // ノードグリッド線。中心領域の輪郭そのものなので、ノード形状に追従する
   ctx.beginPath();
-  for (let row = 0; row < grid.rows; row++) {
-    for (let col = 0; col < grid.columns; col++) {
+  for (let row = bounds.rowStart; row <= bounds.rowEnd; row++) {
+    for (let col = bounds.colStart; col <= bounds.colEnd; col++) {
       traceRegion(ctx, { col, row, kind: 'C' }, grid.shape);
     }
   }
@@ -130,14 +114,53 @@ function drawHighlight(ctx: CanvasRenderingContext2D, region: RegionId): void {
   ctx.stroke();
 }
 
-export function render(ctx: CanvasRenderingContext2D): void {
-  const { width, height } = gridPixelSize(grid);
-  ctx.fillStyle = COLOR_BG;
-  ctx.fillRect(0, 0, width, height);
+/** 表示領域に入っているセルの範囲を求める。端の線が欠けないよう 1 セル広げる */
+function visibleCells(view: Viewport): CellBounds {
+  const left = -view.offsetX / editor.zoom;
+  const top = -view.offsetY / editor.zoom;
+  const right = (view.width - view.offsetX) / editor.zoom;
+  const bottom = (view.height - view.offsetY) / editor.zoom;
 
-  paintGlyph(ctx);
+  return {
+    colStart: Math.max(0, Math.floor(left / CELL_SIZE) - 1),
+    colEnd: Math.min(grid.columns - 1, Math.floor(right / CELL_SIZE) + 1),
+    rowStart: Math.max(0, Math.floor(top / CELL_SIZE) - 1),
+    rowEnd: Math.min(grid.rows - 1, Math.floor(bottom / CELL_SIZE) + 1),
+  };
+}
 
-  if (editor.showGuide) drawGuides(ctx);
+/**
+ * 表示領域を描き直す。キャンバスの寸法は表示領域に合わせる。
+ * グリッドの地色はキャンバスの下に敷いた要素が受け持つため、ここでは描かない。
+ */
+export function render(canvas: HTMLCanvasElement, view: Viewport): void {
+  const dpr = window.devicePixelRatio || 1;
+  const width = Math.max(1, Math.round(view.width * dpr));
+  const height = Math.max(1, Math.round(view.height * dpr));
+
+  if (canvas.width !== width || canvas.height !== height) {
+    canvas.width = width;
+    canvas.height = height;
+    canvas.style.width = `${view.width}px`;
+    canvas.style.height = `${view.height}px`;
+  }
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas 2D context を取得できませんでした');
+
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, width, height);
+
+  // ワールド座標 → デバイスピクセル
+  const scale = editor.zoom * dpr;
+  ctx.setTransform(scale, 0, 0, scale, view.offsetX * dpr, view.offsetY * dpr);
+
+  const bounds = visibleCells(view);
+  if (bounds.colEnd < bounds.colStart || bounds.rowEnd < bounds.rowStart) return;
+
+  paintGlyph(ctx, bounds);
+
+  if (editor.showGuide) drawGuides(ctx, bounds);
 
   // 他のすべてより前面に描く
   if (editor.showHighlight && editor.hoverRegion) drawHighlight(ctx, editor.hoverRegion);

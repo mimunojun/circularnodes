@@ -8,8 +8,8 @@ import { hitTest, regionsOnSegment, screenToGrid } from './geometry';
 import { editor, grid, isFilled, setFilled, setHoverRegion } from './state';
 import type { GridPoint, RegionId } from './types';
 
-function pointerToGrid(canvas: HTMLCanvasElement, event: PointerEvent): GridPoint {
-  const rect = canvas.getBoundingClientRect();
+function pointerToGrid(paper: HTMLElement, event: PointerEvent): GridPoint {
+  const rect = paper.getBoundingClientRect();
   return screenToGrid(event.clientX - rect.left, event.clientY - rect.top, editor.zoom);
 }
 
@@ -95,28 +95,28 @@ export type InputDeps = {
   onZoomAt: (zoom: number, clientX: number, clientY: number) => void;
 };
 
-/** 入力を配線する */
-export function attachInput(canvas: HTMLCanvasElement, deps: InputDeps): void {
+/** 入力を配線する。描画操作はグリッドと同じ大きさを占める用紙の上で受ける */
+export function attachInput(paper: HTMLElement, deps: InputDeps): void {
   const { onChange, actions, onEscape, stage, onZoomAt } = deps;
   const pan = attachPan(stage);
 
-  canvas.addEventListener('pointerdown', (event) => {
-    const point = pointerToGrid(canvas, event);
+  paper.addEventListener('pointerdown', (event) => {
+    const point = pointerToGrid(paper, event);
     const region = hitTest(point.gx, point.gy, grid);
     if (!region) return;
 
     // ストローク全体のモードを開始位置の状態で決める
     editor.strokeMode = isFilled(region) ? 'erase' : 'fill';
     editor.lastPoint = point;
-    canvas.setPointerCapture(event.pointerId);
+    paper.setPointerCapture(event.pointerId);
 
     setHoverRegion(region);
     applyStroke([region]);
     onChange();
   });
 
-  canvas.addEventListener('pointermove', (event) => {
-    const point = pointerToGrid(canvas, event);
+  paper.addEventListener('pointermove', (event) => {
+    const point = pointerToGrid(paper, event);
 
     // パン中は描画の対象を示す必要がないため強調しない（機能仕様書 16.3）
     const hover = pan.isReady() ? null : hitTest(point.gx, point.gy, grid);
@@ -131,7 +131,7 @@ export function attachInput(canvas: HTMLCanvasElement, deps: InputDeps): void {
     if (changed) onChange();
   });
 
-  canvas.addEventListener('pointerleave', () => {
+  paper.addEventListener('pointerleave', () => {
     if (setHoverRegion(null)) onChange();
   });
 
@@ -139,11 +139,11 @@ export function attachInput(canvas: HTMLCanvasElement, deps: InputDeps): void {
     if (editor.strokeMode === null) return;
     editor.strokeMode = null;
     editor.lastPoint = null;
-    if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+    if (paper.hasPointerCapture(event.pointerId)) paper.releasePointerCapture(event.pointerId);
   };
 
-  canvas.addEventListener('pointerup', endStroke);
-  canvas.addEventListener('pointercancel', endStroke);
+  paper.addEventListener('pointerup', endStroke);
+  paper.addEventListener('pointercancel', endStroke);
 
   // ショートカットは修飾キーを伴わない単独キー（機能仕様書 13.7）
   // ⌘ / Ctrl + ホイールでズーム（機能仕様書 14.3）。

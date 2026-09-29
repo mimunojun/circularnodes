@@ -2,11 +2,12 @@
 import { createActions } from './actions';
 import { MAX_ZOOM, MIN_ZOOM, ZOOM_STOPS } from './config';
 import { createGridSizeDialog } from './dialog';
+import { gridPixelSize } from './geometry';
 import { attachInput } from './input';
 import { attachMenuBar } from './menu';
-import { render, setupCanvas } from './render';
+import { render, type Viewport } from './render';
 import { createShapeDialog } from './shape-dialog';
-import { editor, setZoom } from './state';
+import { editor, grid, setZoom } from './state';
 import { attachStatusBar } from './statusbar';
 
 function mustFind<T extends Element>(selector: string): T {
@@ -17,8 +18,27 @@ function mustFind<T extends Element>(selector: string): T {
 
 const canvas = mustFind<HTMLCanvasElement>('#canvas');
 const stage = mustFind<HTMLElement>('#stage');
+/** グリッドと同じ大きさを占める要素。地色とスクロール範囲を受け持つ */
+const paper = mustFind<HTMLElement>('#paper');
 
-let ctx = setupCanvas(canvas);
+/** 用紙の寸法をグリッドと倍率に合わせる */
+function syncPaper(): void {
+  const { width, height } = gridPixelSize(grid);
+  paper.style.width = `${width * editor.zoom}px`;
+  paper.style.height = `${height * editor.zoom}px`;
+}
+
+/** キャンバスから見た用紙の位置と、表示領域の大きさ */
+function viewport(): Viewport {
+  const stageBox = stage.getBoundingClientRect();
+  const paperBox = paper.getBoundingClientRect();
+  return {
+    offsetX: paperBox.left - stageBox.left,
+    offsetY: paperBox.top - stageBox.top,
+    width: stage.clientWidth,
+    height: stage.clientHeight,
+  };
+}
 
 // 再描画は状態変更時のみ。1 フレームに 1 回へ束ねる
 let frameRequested = false;
@@ -27,20 +47,20 @@ function requestRender(): void {
   frameRequested = true;
   requestAnimationFrame(() => {
     frameRequested = false;
-    render(ctx);
+    render(canvas, viewport());
   });
 }
 
-/** グリッドの大きさや倍率が変わったら、キャンバスの寸法を合わせ直してから描き直す */
+/** グリッドの大きさや倍率が変わったら、用紙の寸法を合わせ直してから描き直す */
 function applyViewChange(): void {
-  ctx = setupCanvas(canvas);
+  syncPaper();
   statusBar.update();
   requestRender();
 }
 
 /**
  * 画面上の一点 (clientX, clientY) を動かさずに倍率を変える（機能仕様書 14.4）。
- * キャンバスの寸法を変えたあと、ずれた分だけステージをスクロールして戻す。
+ * 用紙の寸法を変えたあと、ずれた分だけステージをスクロールして戻す。
  */
 function zoomAt(zoom: number, clientX: number, clientY: number): void {
   // ポインタがステージの外（バーの上など）にあるときは、ステージの縁で受け止める
@@ -48,7 +68,7 @@ function zoomAt(zoom: number, clientX: number, clientY: number): void {
   const anchorX = Math.min(Math.max(clientX, box.left), box.right);
   const anchorY = Math.min(Math.max(clientY, box.top), box.bottom);
 
-  const before = canvas.getBoundingClientRect();
+  const before = paper.getBoundingClientRect();
   // 基準点の下にあるワールド座標
   const worldX = (anchorX - before.left) / editor.zoom;
   const worldY = (anchorY - before.top) / editor.zoom;
@@ -56,7 +76,7 @@ function zoomAt(zoom: number, clientX: number, clientY: number): void {
   if (!setZoom(zoom)) return;
   applyViewChange();
 
-  const after = canvas.getBoundingClientRect();
+  const after = paper.getBoundingClientRect();
   stage.scrollLeft += after.left + worldX * editor.zoom - anchorX;
   stage.scrollTop += after.top + worldY * editor.zoom - anchorY;
 }
@@ -90,7 +110,7 @@ const actions = createActions({
 });
 const menuBar = attachMenuBar(document.body, actions);
 
-attachInput(canvas, {
+attachInput(paper, {
   onChange: requestRender,
   actions,
   onEscape: menuBar.closeMenus,
@@ -98,4 +118,9 @@ attachInput(canvas, {
   onZoomAt: zoomAt,
 });
 
-render(ctx);
+// 表示範囲だけを描くため、スクロールとステージの伸縮でも描き直す
+stage.addEventListener('scroll', requestRender, { passive: true });
+new ResizeObserver(() => requestRender()).observe(stage);
+
+syncPaper();
+requestRender();

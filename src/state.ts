@@ -53,10 +53,18 @@ export function setFilled(region: RegionId, value: boolean): boolean {
   return true;
 }
 
-/** 描画済みの領域を走査順（row → col → kind）に列挙する */
-export function* filledRegions(): Generator<RegionId> {
-  for (let row = 0; row < grid.rows; row++) {
-    for (let col = 0; col < grid.columns; col++) {
+/** 走査するセルの範囲（両端を含む） */
+export type CellBounds = { colStart: number; colEnd: number; rowStart: number; rowEnd: number };
+
+/** 描画済みの領域を走査順（row → col → kind）に列挙する。範囲を絞ることもできる */
+export function* filledRegions(bounds?: CellBounds): Generator<RegionId> {
+  const rowStart = Math.max(0, bounds?.rowStart ?? 0);
+  const rowEnd = Math.min(grid.rows - 1, bounds?.rowEnd ?? grid.rows - 1);
+  const colStart = Math.max(0, bounds?.colStart ?? 0);
+  const colEnd = Math.min(grid.columns - 1, bounds?.colEnd ?? grid.columns - 1);
+
+  for (let row = rowStart; row <= rowEnd; row++) {
+    for (let col = colStart; col <= colEnd; col++) {
       for (const kind of KIND_ORDER) {
         if (filled[indexIn(grid, col, row, KIND_INDEX[kind])] === 1) {
           yield { col, row, kind };

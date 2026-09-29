@@ -180,8 +180,18 @@ function controlPoints(p0: Point, p1: Point, t0: Point, t1: Point, mid: Point): 
   ];
 }
 
+/** 直前に求めた四分曲線。全セルで同じ形なので使い回す */
+let quarterCache: { p: number; segments: PathSegment[] } | null = null;
+
 /** 四分曲線を正規化座標のパスとして返す。p = 1 は直線 1 本で厳密に表せる */
 function quarterSegments(p: number): PathSegment[] {
+  if (quarterCache?.p === p) return quarterCache.segments;
+  const segments = buildQuarterSegments(p);
+  quarterCache = { p, segments };
+  return segments;
+}
+
+function buildQuarterSegments(p: number): PathSegment[] {
   if (p === 1) return [{ type: 'line', to: { x: 0, y: 1 } }];
 
   const quarter = Math.PI / 2;
@@ -203,7 +213,7 @@ function quarterSegments(p: number): PathSegment[] {
   return segments;
 }
 
-/** 正規化座標をワールド座標へ移す関数 */
+/** 正規化座標をセル中心を原点とするワールド座標へ移す関数 */
 type Placer = (u: number, v: number) => Point;
 
 function place(segments: PathSegment[], to: Placer): PathSegment[] {
@@ -219,9 +229,47 @@ function place(segments: PathSegment[], to: Placer): PathSegment[] {
   );
 }
 
+/** セル中心を原点とした輪郭。セルの位置によらないので種別ごとに使い回す */
+type LocalPath = { start: Point; segments: PathSegment[] };
+
+let localCache: { p: number; byKind: Partial<Record<RegionKind, LocalPath>> } | null = null;
+
+function localPath(kind: RegionKind, p: number): LocalPath {
+  if (localCache?.p !== p) localCache = { p, byKind: {} };
+  const cached = localCache.byKind[kind];
+  if (cached) return cached;
+
+  const r = CELL_SIZE / 2;
+  const quarter = quarterSegments(p);
+  let built: LocalPath;
+
+  if (kind === 'C') {
+    // 4 象限ぶんを回転して並べ、閉じた輪郭にする
+    const segments: PathSegment[] = [];
+    for (let turns = 0; turns < 4; turns++) {
+      segments.push(...place(quarter, (u, v) => rotate(turns, u * r, v * r)));
+    }
+    built = { start: { x: r, y: 0 }, segments };
+  } else {
+    // 隅領域: 頂点 → 辺の中点 → 四分曲線 → 閉じる
+    const turns = CORNER_TURNS[kind];
+    const put: Placer = (u, v) => rotate(turns, -v * r, -u * r);
+    built = {
+      start: rotate(turns, -r, -r),
+      segments: [{ type: 'line', to: put(1, 0) }, ...place(quarter, put)],
+    };
+  }
+
+  localCache.byKind[kind] = built;
+  return built;
+}
+
 /**
  * 領域の形状をワールド座標（px）で返す。
  * 既定の正円では円・円弧として厳密に、それ以外は直線とベジェのパスとして返す。
+ *
+ * 形は全セルで共通なので、セル中心を原点とした輪郭を種別ごとに使い回し、
+ * ここでは平行移動だけを行う。大きなグリッドでは毎フレームの再計算が効く。
  */
 export function regionShape(region: RegionId, shape: number): RegionShape {
   const r = CELL_SIZE / 2;
@@ -247,33 +295,16 @@ export function regionShape(region: RegionId, shape: number): RegionShape {
     };
   }
 
-  const quarter = quarterSegments(p);
-
-  if (region.kind === 'C') {
-    // 4 象限ぶんを回転して並べ、閉じた輪郭にする
-    const segments: PathSegment[] = [];
-    for (let turns = 0; turns < 4; turns++) {
-      segments.push(
-        ...place(quarter, (u, v) => {
-          const rotated = rotate(turns, u * r, v * r);
-          return { x: cx + rotated.x, y: cy + rotated.y };
-        }),
-      );
-    }
-    return { type: 'path', start: { x: cx + r, y: cy }, segments };
-  }
-
-  // 隅領域: 頂点 → 辺の中点 → 四分曲線 → 閉じる
-  const turns = CORNER_TURNS[region.kind];
-  const put: Placer = (u, v) => {
-    const mapped = rotate(turns, -v * r, -u * r);
-    return { x: cx + mapped.x, y: cy + mapped.y };
-  };
-  const corner = rotate(turns, -r, -r);
+  const local = localPath(region.kind, p);
+  const move = (point: Point): Point => ({ x: cx + point.x, y: cy + point.y });
 
   return {
     type: 'path',
-    start: { x: cx + corner.x, y: cy + corner.y },
-    segments: [{ type: 'line', to: put(1, 0) }, ...place(quarter, put)],
+    start: move(local.start),
+    segments: local.segments.map((segment) =>
+      segment.type === 'line'
+        ? { type: 'line', to: move(segment.to) }
+        : { type: 'cubic', c1: move(segment.c1), c2: move(segment.c2), to: move(segment.to) },
+    ),
   };
 }
